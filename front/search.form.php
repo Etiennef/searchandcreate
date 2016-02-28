@@ -1,10 +1,15 @@
 <?php
 /**
  * @author Etiennef
- * Page dédié à la recherche dans les mots-clés des entités
+ * Page dÃ©diÃ©e Ã  la recherche dans les mots-clÃ©s des entitÃ©s
  */
 include '../../../inc/includes.php';
 Session::checkLoginUser();
+
+if(isset($_POST['newprofile'])) {
+	Session::changeProfile($_POST['newprofile']);
+	Html::back();
+}
 
 if($_SESSION["glpiactiveprofile"]["interface"] == "helpdesk") {
 	Html::helpHeader(PluginSearchandcreateSearch::getTypeName());
@@ -12,7 +17,9 @@ if($_SESSION["glpiactiveprofile"]["interface"] == "helpdesk") {
 	Html::header(PluginSearchandcreateSearch::getTypeName());
 }
 
-PluginSearchandcreateSearch::show($options);
+PluginSearchandcreateSearch::showCommonHTML();
+
+(new PluginSearchandcreateSearch())->show();
 
 if($_SESSION["glpiactiveprofile"]["interface"] == "helpdesk") {
 	Html::helpFooter();

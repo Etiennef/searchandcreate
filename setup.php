@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Fonction de définition de la version du plugin
+ * Fonction de dï¿½finition de la version du plugin
  * @return array description du plugin
  */
 function plugin_version_searchandcreate()
@@ -15,8 +15,8 @@ function plugin_version_searchandcreate()
 }
 
 /**
- * Fonction de vérification des prérequis
- * @return boolean le plugin peut s'exécuter sur ce GLPI
+ * Fonction de vï¿½rification des prï¿½requis
+ * @return boolean le plugin peut s'exï¿½cuter sur ce GLPI
  */
 function plugin_searchandcreate_check_prerequisites()
 {
@@ -34,14 +34,14 @@ function plugin_searchandcreate_check_prerequisites()
 		echo __("Plugin requires Smartredirect 1.0", 'searchandcreate');
 		return false;
 	}
-	// ajouter éventuellement la présence d'autres plugins
+	// ajouter ï¿½ventuellement la prï¿½sence d'autres plugins
 	
 	return true;
 }
 
 
 /**
- * Fonction de vérification de la configuration initiale
+ * Fonction de vï¿½rification de la configuration initiale
  * @param type $verbose
  * @return boolean la config est faite
  */
@@ -79,14 +79,14 @@ function plugin_init_searchandcreate()
 	Plugin::registerClass('PluginSearchandcreateSearch');
 	Plugin::registerClass('PluginSearchandcreateFavorite');
 	
-	// Ajoute l'onget dans les Entités et catégories
+	// Ajoute l'onget dans les Entitï¿½s et catï¿½gories
 	Plugin::registerClass('PluginSearchandcreateKeyword', array(
 		'addtabon' => array('Entity'),
 		'addtabon' => array('ITILCategory')));
 	
 	// Ajout du menu
-	$PLUGIN_HOOKS['menu_entry']['searchandcreate'] = 'front/search.php';
-	$PLUGIN_HOOKS['helpdesk_menu_entry']['searchandcreate'] = '/front/search.php';
+	$PLUGIN_HOOKS['menu_entry']['searchandcreate'] = 'front/search.form.php';
+	$PLUGIN_HOOKS['helpdesk_menu_entry']['searchandcreate'] = '/front/search.form.php';
 }
 
 

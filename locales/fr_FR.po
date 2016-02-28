@@ -1,0 +1,137 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Search and create\n"
+"POT-Creation-Date: 2016-02-28 20:23+0100\n"
+"PO-Revision-Date: 2016-02-28 20:23+0100\n"
+"Last-Translator: Etienne <etienne-github@outlook.fr>\n"
+"Language-Team: Etienne <Etienne-github@outlook.fr>\n"
+"Language: fr_FR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.7.6\n"
+"X-Poedit-Basepath: ../.\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-KeywordsList: __:1,2t\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: inc/config.class.php:12
+msgid "Configuration for Searchandcreate"
+msgstr "Configuration pour Searchandcreate"
+
+#: inc/keyword.class.php:44 inc/search.class.php:189
+msgid "Keywords"
+msgstr "Mots-clés"
+
+#: inc/keyword.class.php:70
+msgid "Keywords for this item"
+msgstr "Mots-clé pour cet objet"
+
+#: inc/keyword.class.php:77
+msgid "No keywords are defined for this item"
+msgstr "Aucun mot-clé nest défini pour cet obet"
+
+#: inc/search.class.php:14 inc/search.class.php:20
+msgid "Search"
+msgstr "Recherche"
+
+#: inc/search.class.php:19
+msgid "Selector"
+msgstr "Sélecteur"
+
+#: inc/search.class.php:21
+msgid "Most used"
+msgstr "Les plus utilisées"
+
+#: inc/search.class.php:45
+msgid "Select where to create ticket"
+msgstr "Choisissez où vous souhaitez créer un ticket"
+
+#: inc/search.class.php:59
+msgid "You have to chose type first"
+msgstr "Vous devez d'abord choisir le type"
+
+#: inc/search.class.php:65
+msgid "Go to creation form"
+msgstr "Aller au formulaire de création"
+
+#: inc/search.class.php:66
+msgid "You have to chose type and category first"
+msgstr "Vous devez d'abord choisir le type et la catégorie du ticket"
+
+#: inc/search.class.php:140 inc/search.class.php:384
+msgid "Create"
+msgstr "Créer"
+
+#: inc/search.class.php:141 inc/search.class.php:385
+msgid "Favorite"
+msgstr "Favori"
+
+#: inc/search.class.php:147
+msgid ""
+"Use of the profile blabla is recommended to create a category. Click here to "
+"change your profile"
+msgstr ""
+"Il est recommandé d'utiliser le profil blabla pour créer des tickets. "
+"Cliquez ici pour le sélectionner"
+
+#: inc/search.class.php:161
+msgid ""
+"Warning : your change on favorites are not automaticly saved, don't forget "
+"to save them by clicking this button"
+msgstr ""
+"Attention : vos changements sur les favoris ne sont pas sauvegardés "
+"automatiquement. N'oubliez pas de les sauvegarder en cliquant sur ce bouton."
+
+#: inc/search.class.php:181
+msgid "Search criteria"
+msgstr "Critères de recherche"
+
+#: inc/search.class.php:182
+msgid "Scope"
+msgstr "Etendue de la recherche"
+
+#: inc/search.class.php:183
+msgid "Display all entities"
+msgstr "Toutes les entités"
+
+#: inc/search.class.php:184
+msgid "Only active entities"
+msgstr "Seulement les entités actives"
+
+#: inc/search.class.php:185
+msgid "Restrict to favorites"
+msgstr "N'afficher que les favoris"
+
+#: scripts/search.js.php:17
+msgid "Remove from favorites"
+msgstr "Retirer des favoris"
+
+#: scripts/search.js.php:18
+msgid "Add to favorites"
+msgstr "Ajouter aux favoris"
+
+#: scripts/search.js.php:19
+msgid "This category does not allow incident creation"
+msgstr "Cette catégorie n'autorise pas le création d'incidents"
+
+#: scripts/search.js.php:20
+msgid "This category does not allow request creation"
+msgstr "Cette catégorie n'autorise pas la création de demandes"
+
+#: scripts/search.js.php:21
+msgid "(000 tickets)"
+msgstr "(000 tickets)"
+
+#: setup.php:24
+msgid "Plugin has been tested only for GLPI 0.84.8"
+msgstr "Ce plugin n'a été testé que pour GLPI 0.84.8"
+
+#: setup.php:29
+msgid "Plugin requires ConfigManager 1.0"
+msgstr "Ce plugin requiert ConfigManager 1.x.x"
+
+#: setup.php:34
+msgid "Plugin requires Smartredirect 1.0"
+msgstr "Ce plugin requiert SmartRedirect 1.x.x"

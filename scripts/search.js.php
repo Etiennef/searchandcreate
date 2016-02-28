@@ -1,78 +1,169 @@
 <?php 
 /**
 * @author Etiennef
-* Script permettant de rechercher les catégories
+* Script permettant de rechercher les catï¿½gories
 */
-?>
+global $GLPI_CFG;
 
-<script>
-var plugin_searchandcreate = (function() {
-	"use strict";
-	var entitiesData = <?php echo json_encode(PluginSearchandcreateSearch::getEntitiesData()); ?>;
-	var categoriesData = <?php echo json_encode(PluginSearchandcreateSearch::getCategoriesData()); ?>;
-	var activeEntities = <?php echo json_encode($_SESSION['glpiactiveentities']); ?>;
-	const baseUrl = '/plugins/searchandcreate/';
-	const baseId = 'plugin_searchandcreate_';
-	const baseNamespace = 'plugin_searchandcreate';
+
+$activeEntities = json_encode($_SESSION['glpiactiveentities'], JSON_FORCE_OBJECT);
+$entitiesData = json_encode(self::getEntitiesData(), JSON_FORCE_OBJECT);
+$categoriesData = json_encode(self::getCategoriesData(), JSON_FORCE_OBJECT);
+
+$translations = array(
+	'root_doc' => $GLPI_CFG['root_doc'],
+	'Incident' => __('Incident'),
+	'Request' => __('Request'),
+	'Remove_from_favorites' => __('Remove from favorites', 'searchandcreate'),
+	'Add_to_favorites' => __('Add to favorites', 'searchandcreate'),
+	'category_not_allow_incident' => addslashes(Html::cleanInputText(__('This category does not allow incident creation', 'searchandcreate'))),
+	'category_not_allow_request' => addslashes(Html::cleanInputText(__('This category does not allow request creation', 'searchandcreate'))),
+	'nb_tickets' => __('(000 tickets)', 'searchandcreate')
+);
+
+echo <<<JS
+<script type="text/javascript">
+
+/* global Ext */
+Ext.onReady(function () {
+	'use strict';
 	
-	initialize();
+	var entitiesData = $entitiesData;
+	var categoriesData = $categoriesData;
+	var activeEntities = $activeEntities;
 	
-	return {
-		refreshView : refreshView,
-		toogleFavorite : toogleFavoriteEventHandler,
-	};
-
-
-
+	Object.keys(entitiesData).forEach(function(id) {
+		entitiesData[id] = {
+			id : id,
+			name : entitiesData[id].name,
+			comment : entitiesData[id].comment || '',
+			keywords : entitiesData[id].keywords || '',
+		}
+	});
+	
+	Object.keys(categoriesData).forEach(function(id) {
+		categoriesData[id] = {
+			id : id,
+			name : categoriesData[id].name,
+			comment : categoriesData[id].comment || '',
+			keywords : categoriesData[id].keywords || '',
+			entities_id : categoriesData[id].entities_id,
+			is_incident : categoriesData[id].is_incident === '1',
+			is_request : categoriesData[id].is_request === '1',
+			is_favorite : categoriesData[id].favorites_id,
+			is_favorite_onserver : categoriesData[id].favorites_id,
+			ticket_cnt : categoriesData[id].ticket_cnt
+		}
+	});
+					
+	
+	// peut Ãªtre 'search' ou 'mostUsed'
+	var activeTab;
+	
+	
+	// Ã©lements de DOM communs
+	var formSaveFavorites = document.querySelector('form[name="$saveFormName"]');
+	var zoneSaveFavorites = document.querySelector('#$zoneSaveFavoritesId');
+	// Ã©lements de DOM pour l'onglet search
+	var tbodyResultsSearch, tableCriteria, searchInput, incidentCheckbox, requestCheckbox, scopeRadio, favoritesOnlyCheckbox;
+	// Ã©lements de DOM pour l'onglet mostused
+	var tbodyResultsMu;
+	
+	/**
+	 * 
+	 */
+	window.sc_onSearchTabLoad = function(ids) {
+		document.querySelector('[id*="PluginSearchandcreateSearch$2"]').addEventListener('click', onSearchTabSelect);
+		
+		tbodyResultsSearch = document.querySelector('#'+ids.tbodyResultsId);
+		tableCriteria = document.querySelector('#'+ids.tableCriteriaId);
+		
+		searchInput = tableCriteria.querySelector('input[name="pattern"]');
+		incidentCheckbox = tableCriteria.querySelector('input[name="is_incident"]');
+		requestCheckbox = tableCriteria.querySelector('input[name="is_request"]');
+		scopeRadio = tableCriteria.querySelector('input[name="entityscope"][value="active"]');
+		var scopeRadio2 = tableCriteria.querySelector('input[name="entityscope"][value="all"]');
+		favoritesOnlyCheckbox = tableCriteria.querySelector('input[name="only_favorites"]');
+		
+		Ext.get(searchInput).addListener('keypress', refreshViewForSearchTab, {}, {buffer:300});
+		incidentCheckbox.addEventListener('change', refreshViewForSearchTab);
+		requestCheckbox.addEventListener('change', refreshViewForSearchTab);
+		scopeRadio.addEventListener('change', refreshViewForSearchTab);
+		scopeRadio2.addEventListener('change', refreshViewForSearchTab);
+		favoritesOnlyCheckbox.addEventListener('change', refreshViewForSearchTab);
+		
+		onSearchTabSelect();
+	}
+	
+	window.sc_onMostUsedTabLoad = function(ids) {
+		document.querySelector('[id*="PluginSearchandcreateSearch$3"]').addEventListener('click', onMostUsedTabSelect);
+		
+		tbodyResultsMu = document.querySelector('#'+ids.tbodyResultsId);
+		//tableOptions = document.querySelector('#'+ids.tableOptionsId);
+		
+		onMostUsedTabSelect();
+	}
+	
+	function onSearchTabSelect() {
+		activeTab = 'search';
+		refreshViewForSearchTab();
+	}
+	
+	function onMostUsedTabSelect() {
+		activeTab = 'mostUsed';
+		refreshView();
+	}
+	
 	function refreshView() {
+		if(activeTab === 'search') {
+			refreshViewForSearchTab();
+		} else if(activeTab === 'mostUsed') {
+			refreshViewForMostUsedTab();
+		}
+	}
+	
+	function refreshViewForSearchTab() {
 		// Prepare data into a regexp
-		var search = Ext.get(baseId+'searchField').dom.value
+		var search = searchInput.value
 			.split(' ')
 			.filter(function(word) {return word!=='';})
 			.map(function(word){return word.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');})
 			.join('|');
 		search = search?new RegExp(search, 'ig'):undefined;
-
-		// Calulate score for entities
-		Object.keys(entitiesData)
-			.forEach(function(id) {
-				entitiesData[id].score = 0;
-				if(search) {
-					entitiesData[id].processedName = entitiesData[id].name.replace(search, replaceSearchParts(entitiesData[id], 10));
-					entitiesData[id].comment.replace(search, replaceSearchParts(entitiesData[id], 2));
-					entitiesData[id].keywords.replace(search, replaceSearchParts(entitiesData[id], 5));
-				} else {
-					entitiesData[id].processedName = entitiesData[id].name;
-				}
-			});
-
-		var isIncident = Ext.get(baseId+'type_isIncident').dom.checked;
-		var isRequest = Ext.get(baseId+'type_isRequest').dom.checked;
-		var searchScopeOnlyActive = Ext.get(baseId+'entityscope_active').dom.checked;
-		var searchScopeOnlyFavorites = Ext.get(baseId+'onlyfavorites').dom.checked;
 		
-		Ext.get(baseId+'tbody').update();
+		// Vide le tableau de rÃ©sultats
+		while (tbodyResultsSearch.firstChild) {
+			tbodyResultsSearch.removeChild(tbodyResultsSearch.firstChild);
+		}
+		
+		
+		// Calcule le score pour les entitÃ©s
+		Object.keys(entitiesData).forEach(function(id) {
+			calculateSearchScore(entitiesData[id], search);
+		});
 		
 		Object.keys(categoriesData)
 			.map(function(id) {
 				return categoriesData[id];
 			})
 			
-		// consider only categories in scope
+		// Filtre les catÃ©gories masquÃ©es
 			.filter(function(category) {
-				return (!isIncident || category.is_incident) &&
-					(!isRequest || category.is_request) &&
-					(!searchScopeOnlyFavorites || category.isFavorite) &&
-					(!searchScopeOnlyActive || activeEntities.indexOf(category.entities_id) !== -1);
+				return (!incidentCheckbox.checked || category.is_incident) &&
+					(!requestCheckbox.checked || category.is_request) &&
+					(!favoritesOnlyCheckbox.checked || category.is_favorite) &&
+					(!scopeRadio.checked || (typeof activeEntities[category.entities_id] !== 'undefined'));
 			})
 		
-		// Calculate score & displayed info
+		// Calcule le score & met Ã  jour le DOM
 			.map(function(category) {
-				makeHtml(category, search);
+				calculateSearchScore(category, search);
+				category.processedName = '<strong>'+category.processedName+'</strong>';
+				refreshHtml(category)
 				return category;
 			})
 			
-		// sort by desc score
+		// Trie par score dÃ©croissant
 			.sort(function(a, b) {
 				if (a.score>b.score)
 					return -1;
@@ -80,209 +171,172 @@ var plugin_searchandcreate = (function() {
 					return 1;
 				return 0;
 			})
-		
-		// add rows in DOM
+			
+		// make html
 			.forEach(function(category) {
-	            Ext.DomHelper.append(baseId+'tbody', category.html);
+				tbodyResultsSearch.appendChild(category.dom);
 			});
 	}
-
 	
-	/*--------------------------------------------------------------------------------------------------------------
-	 * Fonctions intermédiaires
-	-------------------------------------------------------------------------------------------------------------- */
-	function initialize() {
-		entitiesData = prepareRawData(entitiesData, 'id', function(entity) {
-			entity.comment = escapeHtml(entity.comment) || '';
-			entity.keywords = escapeHtml(entity.keywords) || '';
-			return entity;
-		});
-		
-		categoriesData = prepareRawData(categoriesData, 'id', function(category) {
-			category.comment = escapeHtml(category.comment) || '';
-			category.keywords = escapeHtml(category.keywords) || '';
-			category.is_incident = category.is_incident === '1';
-			category.is_request = category.is_request === '1';
-			category.isFavorite = category.favorites_id !== null;
-			return category;
-		});
+	function calculateSearchScore(data, search) {
+		data.score = 0;
+		data.processedName = data.name;
+		data.processedComment = data.comment;
 
-		if(!Array.isArray(activeEntities)) {
-			activeEntities = Object.keys(activeEntities);
+		if(search) {
+			if(data.entities_id)
+				data.score += entitiesData[data.entities_id].score;
+			data.processedName = data.name.replace(search, replaceSearchParts(data, 10));
+			data.processedComment = data.comment.replace(search, replaceSearchParts(data, 2));
+			data.keywords.replace(search, replaceSearchParts(data, 5));
 		}
-		
-		console.log(activeEntities);
-
-		Ext.onReady(function() {
-			Ext.get(baseId+'searchField').addListener('keypress', refreshView, {}, {buffer:300});
-			refreshView();
-		});
 	}
-
+	
 	function replaceSearchParts(item, bonus) {
 		return function(found) {
 			item.score += bonus*found.length;
 			return '<span style="font-weight:bold; color:red">'+found+'</span>';
 		};
 	}
-
-	function toogleFavoriteEventHandler(categoryId) {
+	
+	function refreshViewForMostUsedTab() {
+		// Vide le tableau de rÃ©sultats
+		while (tbodyResultsMu.firstChild) {
+			tbodyResultsMu.removeChild(tbodyResultsMu.firstChild);
+		}
+		
+		// RÃ¨gle le nom calculÃ©e pour les entitÃ©s
+		Object.keys(entitiesData).forEach(function(id) {
+			entitiesData[id].processedName = entitiesData[id].name;
+		});
+		
+		Object.keys(categoriesData)
+			.map(function(id) {
+				return categoriesData[id];
+			})
+		
+		// Calcule le score & met Ã  jour le DOM
+			.map(function(category) {
+				category.processedName = '<strong>' + category.name + '</strong> $translations[nb_tickets]'.replace('000', category.ticket_cnt);
+				category.processedComment = category.comment;
+				refreshHtml(category)
+				return category;
+			})
+			
+		// Trie par nb de ticket dÃ©croissant
+			.sort(function(a, b) {
+				if (a.ticket_cnt>b.ticket_cnt)
+					return -1;
+				if (a.ticket_cnt<b.ticket_cnt)
+					return 1;
+				return 0;
+			})
+			
+		// make html
+			.forEach(function(category) {
+				tbodyResultsMu.appendChild(category.dom);
+			});
+	}
+	
+	
+	var favoritesToadd = {};
+	var favoritesTodelete = {};
+	function toogleFavoriteEventHandler() {
+		var categoryId = this.getAttribute('category-id');
 		var category = categoriesData[categoryId];
-		console.log(category);
-
-		//Hide button until server respond
-		Ext.get(baseId+'toogleFavorite_'+categoryId).setVisible(false);
 		
-		if(category.isFavorite) {
-			Ext.Ajax.request({
-				url : baseUrl+'ajax/favorites.php',
-				params : {
-					action : 'delete',
-					id : category.favorites_id
-				},
-				success : function() {
-					category.isFavorite = false;
-					category.favorites_id = null;
-					refreshView();
-				},
-			});
-		} else {
-			Ext.Ajax.request({
-				url : baseUrl+'ajax/favorites.php',
-				params : {
-					action : 'add',
-					itilcategories_id : category.id,
-				},
-				success : function(res) {
-					category.isFavorite = true;
-					category.favorites_id = JSON.parse(res.responseText);
-					refreshView();
-				},
-			});
-		}
-
-	}
-
-	
-	
-	/*--------------------------------------------------------------------------------------------------------------
-	 * Usines à HTML
-	-------------------------------------------------------------------------------------------------------------- */
-
-	/**
-	 * Renvoie le code HTML permettant d'afficher la ligne du tableau de recherche associée à une catégorie
-	 * @param category la catégorie à afficher
-	 * @param search l'expression régulière utilisée pour la recherche
-	 * @param type le type de ticket qu'on veut créer (1 pour incident, 2 pour demande)
-	 * @return rien, fonctionne par effet de bord category.searchHtml contient le résultat
-	 */
-	 function makeHtml(category, search) {
-		category.score = 0;
-		var name = category.name;
-		var comment = category.comment;
-		var keywords = category.keywords;
-
-		if(search) {
-			name = category.name.replace(search, replaceSearchParts(category, 10));
-			comment = category.comment.replace(search, replaceSearchParts(category, 2));
-			keywords = category.keywords.replace(search, replaceSearchParts(category, 5));
-			category.score += entitiesData[category.entities_id].score;
-		}
-		
-		category.html = 
-			'<tr class="tab_bg_1">' + 
-			'<td title="'+category.keywords+'"><strong>'+name+'</strong> (score='+category.score+')</td>' + 
-			'<td title="'+entitiesData[category.entities_id].comment+'">'+entitiesData[category.entities_id].processedName+'</td>' + 
-			'<td>'+comment+'</td>' + 
-			makeCreateButtonCell(category, 1) +
-			makeCreateButtonCell(category, 2) +
-			'<td style="width:5%">'+makeFavoriteButtonHtml(category)+'</td>' + 
-			'</tr>';
-	}
-
-	/**
-	 * Renvoie le code html pour afficher le bouton qui permet d'ajouter/retirer un favori.
-	 * @param category id de la catégorie à ajouter/retirer des favoris
-	 * @return string code html à utiliser
-	 */
-	function makeFavoriteButtonHtml(category) {
-		var text = category.isFavorite ? 
-				'<?php echo __('Remove from favorites', 'searchandcreate')?>' : 
-				'<?php echo __('Add to favorites', 'searchandcreate')?>';
-
-		return '<a onclick="'+baseNamespace+'.toogleFavorite('+category.id+')" class="vsubmit" id="'+baseId+'toogleFavorite_'+category.id+'">'+text+'</a>';
-	}
-	
-	/**
-	 * Renvoie le code html pour afficher le bouton qui redirige vers la création d'un ticket.
-	 * @param category objet catégory vers laquelle créer un boutton
-	 * @param type type à préselectionner (1 pour incident, 2 pour demande, peut être au choix une string ou un integer)
-	 * @return string code html à utiliser
-	 */
-	function makeCreateButtonCell(category, type) {
-		if((type === '1' || type === 1)) {
-			if(category.is_incident) {
-				return '<td style="width:5%"><a href="'+baseUrl+'front/createredir.form.php?id=e'+category.entities_id+'t1c'+category.id+'" class="vsubmit">'+
-					'<?php echo __('Incident')?></a></td>';
+		if(category.is_favorite) {
+			if(category.is_favorite_onserver) {
+				favoritesTodelete[categoryId] = true;
 			} else {
-				return '<td title="<?php echo __('This category does not allow incident creation', 'searchandcreate')?>"></td>';
+				delete favoritesToadd[categoryId];
 			}
-		} else if((type === '2' || type === 2)) {
-			if(category.is_request) {
-				return '<td style="width:5%"><a href="'+baseUrl+'front/createredir.form.php?id=e'+category.entities_id+'t2c'+category.id+'" class="vsubmit">'+
-					'<?php echo __('Request')?></a></td>';
+		} else {
+			if(category.is_favorite_onserver) {
+				delete favoritesTodelete[categoryId];
 			} else {
-				return '<td title="<?php echo __('This category does not allow request creation', 'searchandcreate')?>"></td>';
+				favoritesToadd[categoryId] = true;
 			}
 		}
+
+		category.is_favorite = !category.is_favorite;
 		
+		refreshHtml(category);
+
+		if(Object.keys(favoritesToadd).length !== 0 || Object.keys(favoritesTodelete).length !== 0) {
+			zoneSaveFavorites.removeAttribute('style');
+		} else {
+			zoneSaveFavorites.setAttribute('style', 'display:none');
+		}
 	}
-
-
-	/*--------------------------------------------------------------------------------------------------------------
-	 * Mini-fonctions utilitaires sans lien fort avec GLPI
-	-------------------------------------------------------------------------------------------------------------- */
+	
+	formSaveFavorites.addEventListener('submit', prepareFavoriteSubmit);
+	function prepareFavoriteSubmit() {
+		var formInputs = '';
+		Object.keys(favoritesToadd).forEach(function(toadd) {
+			formInputs += '<input type="hidden" name="add_fav[]" value="'+toadd+'">';
+		});
+		Object.keys(favoritesTodelete).forEach(function(toadd) {
+			formInputs += '<input type="hidden" name="delete_fav[]" value="'+toadd+'">';
+		});
+		formSaveFavorites.innerHTML += formInputs;
+		return false;
+	}
+	
+	
+	
+	
 	
 	/**
-	 * Transforme un tableau ou un objet en objet hasmap. Peut appliquer une transformation en même temps.
-	 * Très utile pour initialiser les données reçues du serveur : on ne sait pas s'il s'agit d'un objet ou d'un tableau, et il est nécessaire de procéder à des initialisations.
-	 * 
-	 * @param rawData : tableau ou objet à transformer
-	 * @param id : le nom du champ des objets qui servira de clé (par défaut, 'id')
-	 * @param transform : fonction de transformation (par défaut, identité)
-	 * 		@param raw l'objet tel que reçu
-	 * 		@return l'objet transformé
-	 * @return l'objet indexé comme convenu
+	 * Construit ou met Ã  jour l'objet DOM permettant d'afficher la ligne du tableau de recherche associÃ©e Ã  une catÃ©gorie
+	 * @param category la catÃ©gorie Ã  afficher
+	 * @return rien, fonctionne par effet de bord category.dom contient le rÃ©sultat
 	 */
-	function prepareRawData(rawData, id, transform) {
-		if(!transform) {
-			transform = function(rawData){return rawData;};
-		}
-		if(!id) id = 'id';
-	
-		if(Array.isArray(rawData)) {
-			return rawData.reduce(function(o, v, i) {
-				o[v[id]] = transform(v);
-				return o;
-			}, {});
+	function refreshHtml(category) {
+		var favImage = category.is_favorite ?
+			'<img src="/pics/reset.png" title="$translations[Remove_from_favorites]">' :
+			'<img src="/pics/menu_add.png" title="$translations[Add_to_favorites]">' ;
+		
+		if(typeof category.dom === 'undefined') {
+			// crÃ©ation de l'objet DOM
+			//TODO ajouter la gestion du profil
+			var incidentLink = '$GLPI_CFG[root_doc]/index.php?redirect=plugin_smartredirect_create_1' +
+				'e' + category.entities_id +'t1c' + category.id;
+			var requestLink = '$GLPI_CFG[root_doc]/index.php?redirect=plugin_smartredirect_create_1' +
+				'e' + category.entities_id +'t2c' + category.id;
+			
+			category.dom = document.createElement('tr');
+			category.dom.innerHTML = '<td title="'+category.keywords+'" cs-name="category-name">'+category.processedName+'</td>' +
+				'<td title="'+entitiesData[category.entities_id].comment+'" cs-name="entity-name">'+entitiesData[category.entities_id].processedName+'</td>' +
+				'<td cs-name="category-comment">'+category.processedComment+'</td>' +
+				(category.is_incident ? 
+					'<td style="width:5%"><a href="'+incidentLink+'" class="vsubmit">$translations[Incident]</a></td>' :
+					'<td title="$translations[category_not_allow_incident]"></td>') +
+				(category.is_request ? 
+					'<td style="width:5%"><a href="'+requestLink+'" class="vsubmit">$translations[Request]</a></td>' :
+					'<td title="$translations[category_not_allow_request]"></td>') +
+				'<td style="width:5%; text-align:center"><a class="pointer" category-id="'+category.id+'">'+favImage+'</a></td>';
+			category.dom.childNodes[5].firstChild.addEventListener('click', toogleFavoriteEventHandler);
+			
 		} else {
-			return Object.keys(rawData).reduce(function(o, key, i) {
-				o[rawData[key][id]] = transform(rawData[key]);
-				return o;
-			}, {});
+			// Simple refresh
+			category.dom.childNodes[0].innerHTML = category.processedName;
+			category.dom.childNodes[1].innerHTML = entitiesData[category.entities_id].processedName;
+			category.dom.childNodes[2].innerHTML = category.processedComment;
+			category.dom.childNodes[5].firstChild.innerHTML = favImage;
+			if(!shouldBePrinted(category)) category.dom.remove();
 		}
 	}
-
-	function escapeHtml(str) {
-		var div = document.createElement('div');
-		div.appendChild(document.createTextNode(str));
-		return div.innerHTML;
-	};
 	
-})();
-
-
-
+	function shouldBePrinted(category) {
+		if(activeTab === 'search' && favoritesOnlyCheckbox && favoritesOnlyCheckbox.checked && !category.is_favorite)
+			return false;
+		return true;
+	}
+	
+});	
 
 
 </script>
+JS;
+?>
